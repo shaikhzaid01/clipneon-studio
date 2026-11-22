@@ -1,0 +1,449 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ClipNeon Studio - AI Viral Video Clipping Suite</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Barlow+Condensed:wght@700;800;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/assets/style.css">
+</head>
+<body>
+  <!-- Toast Container -->
+  <div id="toast-container" class="toast-container"></div>
+
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="brand-icon">⚡</div>
+      <div class="brand-text">
+        <span>CLIPNEON</span>
+        <small>AI STUDIO 4K</small>
+      </div>
+    </div>
+    
+    <div class="nav-section-title">WORKSPACE</div>
+    <button class="nav-item active" data-view="editor">
+      <span class="icon">◫</span> Create Clips
+    </button>
+    <button class="nav-item" data-view="library">
+      <span class="icon">▦</span> My Library <span id="library-count" class="count-badge">0</span>
+    </button>
+
+    <div class="sidebar-spacer"></div>
+
+    <div class="system-status-box">
+      <div class="status-indicator">
+        <span class="pulse-dot"></span>
+        <span class="status-title">Hardware Engine</span>
+      </div>
+      <p id="gpu-status">GPU Hardware Accelerated</p>
+      <button id="clean-disk-btn" class="clean-btn">🧹 Free Up Disk Space</button>
+    </div>
+
+    <div class="version-tag">ClipNeon Studio v2.0 • Ultra HD</div>
+  </aside>
+
+  <!-- Main Content -->
+  <main>
+    <header class="app-header">
+      <div class="header-left">
+        <div class="eyebrow-badge">AI VIDEO HIGHLIGHT ENGINE</div>
+        <h1>Turn Long Videos Into <em>Viral 4K Clips</em></h1>
+        <p>Instant vertical clips with animated karaoke subtitles, viral hooks, and social media captions ready for YouTube Shorts, Reels & TikTok.</p>
+      </div>
+      <div class="header-actions">
+        <div class="quality-pill">
+          <span class="icon">💎</span> 4K Ultra HD Export
+        </div>
+      </div>
+    </header>
+
+    <!-- Editor View -->
+    <section id="editor-view">
+      <!-- Step 01: Import Video -->
+      <section class="studio-card import-card">
+        <div class="card-header">
+          <div class="step-badge">01</div>
+          <div class="card-title-group">
+            <h2>Source Video</h2>
+            <p>Paste a YouTube, Twitch or Kick replay link, or upload an MP4/MKV file</p>
+          </div>
+          <label class="btn btn-outline upload-btn">
+            <span>↑ Upload File</span>
+            <input id="file" type="file" accept="video/*" hidden>
+          </label>
+        </div>
+
+        <div class="url-input-container">
+          <div class="input-with-icon">
+            <span class="input-prefix">🔗</span>
+            <input id="url" type="url" placeholder="Paste YouTube, Twitch or Kick video link here...">
+          </div>
+          <button class="btn btn-secondary" id="link">Load Preview</button>
+          <button class="btn btn-primary" id="make">⚡ Make 4K Clips</button>
+        </div>
+
+        <!-- Live Progress Section -->
+        <div id="make-results" class="results-container" hidden>
+          <div class="status-header">
+            <div class="status-info">
+              <span class="spinner-icon"></span>
+              <span id="make-status">Processing video...</span>
+            </div>
+            <button id="cancel-job-btn" class="btn btn-danger-sm" hidden>✕ Cancel</button>
+          </div>
+          <div class="progress-track">
+            <div id="make-progress" class="progress-bar"></div>
+          </div>
+          <div id="make-grid" class="clips-grid"></div>
+        </div>
+
+        <!-- Frame Thumbnails -->
+        <div id="frames-panel" class="frames-container">
+          <div class="frames-header">
+            <span class="sub-label" id="link-status">Frames will appear here to fine-tune your crop area.</span>
+            <div class="progress-track-sm" id="progress-wrap" hidden>
+              <div id="progress" class="progress-bar-sm"></div>
+            </div>
+          </div>
+          <div id="frames" class="frames-scroll"></div>
+        </div>
+      </section>
+
+      <!-- Step 02: Clip & Subtitle Settings -->
+      <section class="studio-card">
+        <div class="card-header">
+          <div class="step-badge">02</div>
+          <div class="card-title-group">
+            <h2>Format & Quality Controls</h2>
+            <p>Select export quality, aspect ratio, subtitle style and AI moment detection</p>
+          </div>
+        </div>
+
+        <div class="controls-grid">
+          <div class="form-group">
+            <label>Export Quality</label>
+            <select id="export-res">
+              <option value="4k" selected>💎 4K Ultra HD (2160 × 3840)</option>
+              <option value="2k">✨ 2K Quad HD (1440 × 2560)</option>
+              <option value="1080p">⚡ 1080p Full HD (1080 × 1920)</option>
+              <option value="720p">🚀 720p Fast HD (720 × 1280)</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label>Aspect Ratio</label>
+            <select id="export-aspect">
+              <option value="9:16" selected>📱 9:16 Vertical (Shorts/Reels)</option>
+              <option value="1:1">⬛ 1:1 Square (Instagram/Feed)</option>
+              <option value="16:9">🖥️ 16:9 Landscape (YouTube/Twitch)</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label>Detection Mode</label>
+            <select id="mode">
+              <option value="fast" selected>⚡ Fast AI (~2 Min, Loudness & Speech)</option>
+              <option value="deep">🔬 Deep AI (Optical Flow + Audio Analysis)</option>
+            </select>
+          </div>
+
+          <div class="form-group count-form-group">
+            <label>Clip Quantity</label>
+            <div class="quantity-row">
+              <select id="count-mode">
+                <option value="auto" selected>✨ Auto (Smart Length)</option>
+                <option value="3">3 Viral Clips</option>
+                <option value="5">5 Viral Clips</option>
+                <option value="8">8 Viral Clips</option>
+                <option value="12">12 Viral Clips</option>
+                <option value="custom">⚙️ Custom Count...</option>
+              </select>
+              <div class="custom-count-stepper" id="custom-count-wrap" style="display: none;">
+                <button type="button" class="stepper-btn" id="count-minus" title="Decrease">−</button>
+                <input id="count" type="number" min="1" max="30" value="5" title="Clips to generate">
+                <button type="button" class="stepper-btn" id="count-plus" title="Increase">+</button>
+                <span class="stepper-unit">clips</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label>Min Length (s)</label>
+            <input id="minlen" type="number" min="5" max="120" value="30">
+          </div>
+
+          <div class="form-group">
+            <label>Max Length (s)</label>
+            <input id="length" type="number" min="10" max="180" value="60">
+          </div>
+        </div>
+
+        <!-- Layout Selector -->
+        <div class="layout-selector">
+          <label class="section-subheading">Video Frame Layout</label>
+          <div class="layout-options-grid" id="layouts">
+            <button class="layout-card active" data-layout="stack">
+              <div class="layout-preview stack-icon">
+                <span class="cam-box"></span>
+                <span class="game-box"></span>
+              </div>
+              <div class="layout-name">Face + Gameplay</div>
+              <small>Dual split-screen layout</small>
+            </button>
+
+            <button class="layout-card" data-layout="blur">
+              <div class="layout-preview blur-icon">
+                <span class="blur-bg"></span>
+                <span class="blur-fg"></span>
+              </div>
+              <div class="layout-name">Blurred Backdrop</div>
+              <small>Retains entire original frame</small>
+            </button>
+
+            <button class="layout-card" data-layout="fill">
+              <div class="layout-preview fill-icon">
+                <span class="fill-box"></span>
+              </div>
+              <div class="layout-name">Fill & Crop</div>
+              <small>Center-filled full frame</small>
+            </button>
+
+            <button class="layout-card" data-layout="game">
+              <div class="layout-preview game-icon">
+                <span class="gameplay-box"></span>
+              </div>
+              <div class="layout-name">Selected Region</div>
+              <small>Custom area only</small>
+            </button>
+          </div>
+        </div>
+
+        <!-- Presets Bar -->
+        <div class="preset-controls">
+          <span class="preset-title">Facecam Position:</span>
+          <div class="chip-group">
+            <button class="chip" data-preset="tl">↖ Top-Left</button>
+            <button class="chip" data-preset="tr">↗ Top-Right</button>
+            <button class="chip" data-preset="bl">↙ Bottom-Left</button>
+            <button class="chip" data-preset="br">↘ Bottom-Right</button>
+            <button class="chip" data-preset="bc">⬇ Bottom-Center</button>
+            <button class="chip" data-preset="none">No Facecam</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- Step 03: Interactive Framing & Editor -->
+      <section class="studio-card">
+        <div class="card-header">
+          <div class="step-badge">03</div>
+          <div class="card-title-group">
+            <h2>Interactive Framing Studio</h2>
+            <p>Draw or adjust your Facecam & Gameplay regions directly on the video</p>
+          </div>
+          <span class="source-status-pill" id="source-mode">NO SOURCE LOADED</span>
+        </div>
+
+        <div class="framing-workspace">
+          <!-- Canvas & Video Editor -->
+          <div class="editor-column">
+            <div class="editor-toolbar">
+              <div class="toolbar-mode-group">
+                <button id="cam" class="tool-btn active">
+                  <span class="dot pink-dot"></span> Facecam Region
+                </button>
+                <button id="game" class="tool-btn">
+                  <span class="dot cyan-dot"></span> Gameplay Region
+                </button>
+              </div>
+              <div class="toolbar-actions">
+                <button id="save" class="tool-action-btn">💾 Save Layout</button>
+                <button id="load" class="tool-action-btn">📂 Load Saved</button>
+              </div>
+            </div>
+
+            <div class="canvas-viewport">
+              <canvas id="source" width="960" height="540"></canvas>
+              <div id="empty-source" class="empty-viewport-notice">
+                <span class="icon">🎬</span>
+                <p>Preview frames will appear here</p>
+                <small>Select or upload a video to drag Facecam & Gameplay boxes</small>
+              </div>
+            </div>
+
+            <!-- Hidden Video Decoding Engine -->
+            <video id="video" preload="metadata" style="display: none;"></video>
+
+            <!-- Sleek Studio Timeline & Playback Controller -->
+            <div class="video-playback-bar" id="playback-bar" style="display: none;">
+              <button type="button" id="play-btn" class="play-toggle-btn" title="Play / Pause">▶</button>
+              <div class="scrubber-track-container">
+                <input type="range" id="seek-bar" class="seek-slider" min="0" max="100" value="0" step="0.1">
+              </div>
+              <span id="time-display" class="time-readout">00:00 / 00:00</span>
+              <div class="playback-quick-markers">
+                <button type="button" id="set-start-btn" class="mark-btn" title="Set current timestamp as clip start">🚩 Set Start</button>
+                <button type="button" id="set-end-btn" class="mark-btn" title="Set current timestamp as clip end">🏁 Set End</button>
+              </div>
+            </div>
+
+            <div class="timing-controls">
+              <div class="time-input">
+                <label>Clip Start (s)</label>
+                <input id="start" type="number" value="0" min="0" step="0.1">
+              </div>
+              <div class="time-input">
+                <label>Clip End (s)</label>
+                <input id="end" type="number" value="30" min="0" step="0.1">
+              </div>
+              <div class="range-slider" id="height-control">
+                <label>Facecam Split Ratio: <b id="height-value">32%</b></label>
+                <input id="top" type="range" min="20" max="50" value="32">
+              </div>
+            </div>
+          </div>
+
+          <!-- Smartphone Live Preview Simulator -->
+          <div class="simulator-column">
+            <div class="phone-frame">
+              <div class="phone-notch"></div>
+              <canvas id="preview" width="540" height="960"></canvas>
+              <div class="phone-home-bar"></div>
+            </div>
+            <span class="simulator-label">Real-Time Mobile Simulator</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- Step 04: Subtitles & Social Media Engine -->
+      <section class="studio-card">
+        <div class="card-header">
+          <div class="step-badge">04</div>
+          <div class="card-title-group">
+            <h2>Subtitles & Social Media Suite</h2>
+            <p>Word-timed animated captions and auto-generated titles, hooks & descriptions</p>
+          </div>
+          <label class="toggle-switch">
+            <input id="captions" type="checkbox" checked>
+            <span class="slider"></span>
+            <span class="toggle-text">Burn-in Subtitles</span>
+          </label>
+        </div>
+
+        <div class="subtitles-section">
+          <label class="section-subheading">Subtitle Visual Styles</label>
+          <div class="caption-styles-grid">
+            <button class="style-card active gta" data-style="gta">
+              <div class="style-sample">VIRAL <strong>MOMENT</strong></div>
+              <div class="style-title">GTA Neon</div>
+              <small>Pink & Cyan electric glow</small>
+            </button>
+
+            <button class="style-card bold" data-style="bold">
+              <div class="style-sample">VIRAL <strong>MOMENT</strong></div>
+              <div class="style-title">Impact Pop</div>
+              <small>Bold yellow active word</small>
+            </button>
+
+            <button class="style-card hormozi" data-style="hormozi">
+              <div class="style-sample">VIRAL <strong style="color:#00F2FE">MOMENT</strong></div>
+              <div class="style-title">Hormozi Kinetic</div>
+              <small>White & Cyan word pop</small>
+            </button>
+
+            <button class="style-card mrbeast" data-style="mrbeast">
+              <div class="style-sample" style="color:#FFF000">VIRAL <strong style="color:#FF5500">MOMENT</strong></div>
+              <div class="style-title">MrBeast Explosive</div>
+              <small>Heavy outline & orange pop</small>
+            </button>
+
+            <button class="style-card clean" data-style="clean">
+              <div class="style-sample" style="font-weight:500; font-size:13px">Viral moment.</div>
+              <div class="style-title">Clean Modern</div>
+              <small>Minimal high-retention subtitles</small>
+            </button>
+          </div>
+
+          <div class="caption-settings-bar">
+            <div class="form-group">
+              <label>Spoken Language</label>
+              <select id="language">
+                <option value="" selected>Auto (Auto Detect & Translate)</option>
+                <option value="hinglish">Hinglish (Hindi in English letters)</option>
+                <option value="hi">हिंदी (Devanagari Unicode)</option>
+                <option value="en">English</option>
+              </select>
+            </div>
+
+            <div class="form-group flex-slider">
+              <label>Vertical Caption Position</label>
+              <input id="caption-y" type="range" min="500" max="1750" value="1450">
+            </div>
+
+            <button id="transcribe" class="btn btn-secondary align-end">Generate Subtitles</button>
+          </div>
+
+          <!-- Interactive Word Editor -->
+          <div class="word-editor-container">
+            <label class="section-subheading">Word Timestamps & Transcript Editor</label>
+            <div id="words" class="word-chips-editor">
+              <div class="empty-words-notice">Click "Generate Subtitles" to transcribe and edit individual words before exporting.</div>
+            </div>
+          </div>
+
+          <!-- Social Copy Suite -->
+          <div class="social-suite-grid">
+            <div class="form-group">
+              <label>Viral Clip Title</label>
+              <input id="clip-title" placeholder="Give this clip an eye-catching viral title...">
+            </div>
+            <div class="form-group">
+              <label>Opening Hook (First 3s on screen)</label>
+              <input id="hook" placeholder="Attention-grabbing opening hook..." maxlength="65">
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label>Social Description & Viral Hashtags (YouTube / Instagram / TikTok)</label>
+            <textarea id="post-caption" rows="3" placeholder="AI-generated description, tags and viral hashtags will appear here..."></textarea>
+          </div>
+        </div>
+      </section>
+
+      <!-- Bottom Floating Export Dock -->
+      <footer class="export-dock">
+        <div class="dock-status">
+          <div class="status-indicator">
+            <span class="pulse-dot"></span>
+            <b id="status" role="status">Ready to clip. Add a video to begin.</b>
+          </div>
+          <small id="detail">Exports are saved in ultra quality on your local machine.</small>
+        </div>
+        <div class="dock-actions">
+          <button class="btn btn-primary-glow" id="export">Export 4K Clip ↗</button>
+          <a id="download" class="btn btn-success" hidden download="clip-4k.mp4">↓ Download 4K MP4</a>
+          <a id="srt" class="btn btn-outline" hidden>↓ Subtitles SRT</a>
+        </div>
+      </footer>
+    </section>
+
+    <!-- Library View -->
+    <section id="library-view" hidden>
+      <div class="library-header">
+        <div>
+          <h2>Your Rendered Clips</h2>
+          <p>Instant access to all your rendered 4K clips, subtitle files, and copyable social media captions.</p>
+        </div>
+        <div class="library-header-actions">
+          <button id="refresh-library" class="btn btn-secondary">🔄 Refresh Library</button>
+        </div>
+      </div>
+      <div id="library" class="library-grid"></div>
+    </section>
+  </main>
+
+  <script src="/assets/app.js"></script>
+</body>
+</html>
