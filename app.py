@@ -267,11 +267,11 @@ def get_os_encoders(bitrate='14M'):
             ['-c:v', 'h264_videotoolbox', '-b:v', bitrate, '-allow_sw', '1'],
             ['-c:v', 'libx264', '-crf', '17', '-preset', 'faster']
         ]
-    # Windows & Linux: Prioritize NVIDIA NVENC, then AMF, then CPU
+    # Windows & Linux: Prioritize NVIDIA NVENC, then AMF, then CPU (limited threads for server stability)
     return [
-        ['-c:v', 'h264_nvenc', '-preset', 'p6', '-cq', '17', '-b:v', bitrate, '-maxrate', f'{int(bitrate[:-1])*1.5:.0f}M', '-bufsize', f'{int(bitrate[:-1])*2:.0f}M'],
+        ['-c:v', 'h264_nvenc', '-preset', 'p4', '-cq', '18', '-b:v', bitrate, '-maxrate', f'{int(bitrate[:-1])*1.5:.0f}M', '-bufsize', f'{int(bitrate[:-1])*2:.0f}M'],
         ['-c:v', 'h264_amf', '-b:v', bitrate],
-        ['-c:v', 'libx264', '-crf', '17', '-preset', 'medium']
+        ['-c:v', 'libx264', '-crf', '18', '-preset', 'faster', '-threads', '2']
     ]
 
 @app.post('/export')
@@ -364,7 +364,7 @@ def export(b: dict):
             # EBU R128 audio normalization filter for punchy sound
             audio_filter = ['-af', 'loudnorm=I=-16:TP=-1.5:LRA=11']
             base_cmd = [
-                'ffmpeg', '-y', '-v', 'error',
+                'ffmpeg', '-y', '-v', 'error', '-threads', '2',
                 '-ss', str(start), '-t', str(end - start),
                 '-i', str(src),
                 '-filter_complex', fc,

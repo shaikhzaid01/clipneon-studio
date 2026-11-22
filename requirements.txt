@@ -5,5 +5,7 @@ yt-dlp
 numpy>=1.26,<3
 Pillow>=10
 faster-whisper>=1.2,<2
+nvidia-cublas-cu12
+nvidia-cudnn-cu12
 opencv-python-headless
 av>=12.0

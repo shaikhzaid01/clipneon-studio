@@ -42,30 +42,44 @@ def _best_hindi():
 
 def _load(WhisperModel, spec, data):
     """Hardware accelerated GPU first, CPU as universal fallback."""
-    site = Path(sys.prefix) / 'Lib' / 'site-packages' / 'nvidia'
-    for sub in ('cublas', 'cudnn'):
-        b = site / sub / 'bin'
-        if b.exists():
+    # 1. Cross-platform CUDA / cuDNN library path linking
+    if sys.platform == 'win32':
+        site = Path(sys.prefix) / 'Lib' / 'site-packages' / 'nvidia'
+        for sub in ('cublas', 'cudnn'):
+            b = site / sub / 'bin'
+            if b.exists():
+                try:
+                    os.add_dll_directory(str(b))
+                except (OSError, AttributeError):
+                    pass
+                os.environ['PATH'] = str(b) + os.pathsep + os.environ['PATH']
+    else:
+        # Linux (Kaggle / Colab): Link nvidia shared libs to LD_LIBRARY_PATH
+        import site as _site
+        sp_paths = _site.getsitepackages() if hasattr(_site, 'getsitepackages') else [Path(sys.prefix) / 'lib' / f'python{sys.version_info.major}.{sys.version_info.minor}' / 'site-packages']
+        for sp in sp_paths:
+            nvidia_dir = Path(sp) / 'nvidia'
+            if nvidia_dir.exists():
+                for sub in ('cublas', 'cudnn', 'cuda_runtime'):
+                    lib_dir = nvidia_dir / sub / 'lib'
+                    if lib_dir.exists():
+                        cur_ld = os.environ.get('LD_LIBRARY_PATH', '')
+                        if str(lib_dir) not in cur_ld:
+                            os.environ['LD_LIBRARY_PATH'] = str(lib_dir) + (':' + cur_ld if cur_ld else '')
+
+    # 2. Try loading on NVIDIA GPU (Tesla T4 / CUDA) with Turing-optimal float16
+    if os.environ.get('CLIPNEON_CPU') != '1':
+        for ctype in ('float16', 'int8_float16', 'int8'):
             try:
-                os.add_dll_directory(str(b))
-            except (OSError, AttributeError):
-                pass
-            os.environ['PATH'] = str(b) + os.pathsep + os.environ['PATH']
-    big = ('large-v3' in spec) and ('turbo' not in spec)
-    if big:
-        try:
-            free = int(subprocess.run(['nvidia-smi', '--query-gpu=memory.free', '--format=csv,noheader,nounits'], capture_output=True, text=True, timeout=5).stdout.split()[0])
-        except Exception:
-            free = 0
-        big = free < 3400
-    if os.environ.get('CLIPNEON_CPU') != '1' and not big:
-        try:
-            m = WhisperModel(spec, device='cuda', compute_type='int8_float16', download_root=str(data / 'models'))
-            list(m.transcribe(__import__('numpy').zeros(16000, dtype='float32'))[0])
-            return m
-        except Exception:
-            pass
-    return WhisperModel(spec, device='cpu', compute_type='int8', cpu_threads=max(1, (os.cpu_count() or 4) - 2), download_root=str(data / 'models'))
+                m = WhisperModel(spec, device='cuda', compute_type=ctype, download_root=str(data / 'models'))
+                list(m.transcribe(__import__('numpy').zeros(16000, dtype='float32'))[0])
+                print(f"[AI Speech] Successfully loaded Whisper ({spec}) on NVIDIA GPU (compute: {ctype})")
+                return m
+            except Exception as err:
+                continue
+
+    print(f"[AI Speech] Warning: Running Whisper ({spec}) on CPU fallback (limited to 2 threads)")
+    return WhisperModel(spec, device='cpu', compute_type='int8', cpu_threads=2, download_root=str(data / 'models'))
 
 LOCK = threading.Lock()
 
