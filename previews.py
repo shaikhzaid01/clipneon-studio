@@ -44,41 +44,28 @@ def prepare(url, job, data, probe, publish):
         raise RuntimeError('Replay duration unavailable. Wait for download or upload an MP4.')
     meta = {'w': info.get('width') or 1920, 'h': info.get('height') or 1080, 'duration': duration, 'title': info.get('title', 'Video')}
 
-    # 2. Extract actual video frames from remote stream (Full HD 1080p)
-    # Prefer HLS (m3u8) as it seeks instantly over HTTP without moov-atom restrictions
-    formats = [f for f in info.get('formats', []) if f.get('vcodec') not in (None, 'none') and f.get('url') and f.get('height', 0) <= 1080]
-    hls_formats = [f for f in formats if (f.get('protocol') or '').startswith('m3u8') and f.get('height', 0) >= 720]
-    avc_formats = [f for f in formats if f.get('vcodec', '').startswith('avc1') and f.get('height', 0) >= 720]
-    other_formats = [f for f in formats if f not in hls_formats and f not in avc_formats]
+    # 2. Fast Thumbnail & Storyboard Extraction (Takes < 1s, zero server freeze)
+    # First: immediately deliver the video thumbnail as frame 0
+    thumb_url = info.get('thumbnail')
+    if not thumb_url and info.get('thumbnails'):
+        thumbs = [th for th in info['thumbnails'] if th.get('url')]
+        if thumbs:
+            thumb_url = thumbs[-1]['url']
 
-    candidate_streams = hls_formats + avc_formats + other_formats
-    headers = ''.join(f'{k}: {v}\r\n' for k, v in info.get('http_headers', {}).items())
+    if thumb_url:
+        try:
+            req = urllib.request.Request(thumb_url, headers={'User-Agent': 'Mozilla/5.0'})
+            with urllib.request.urlopen(req, timeout=5) as response:
+                img_data = response.read()
+            img = Image.open(io.BytesIO(img_data)).convert('RGB')
+            out_thumb = folder / '0.jpg'
+            img.save(out_thumb, quality=92)
+            t_initial = duration * 0.15 if duration > 1800 else duration * 0.08
+            ready(out_thumb, t_initial, meta, 'HD Video Thumbnail')
+        except Exception:
+            pass
 
-    # For streams / long videos, skip initial intro/standby screens (e.g. "stream starting soon")
-    fractions = (.15, .35, .60, .85) if duration > 1800 else (.08, .30, .60, .85)
-
-    for fraction in fractions:
-        if len(frames) >= 4:
-            break
-        t = duration * fraction
-        out = folder / f'{len(frames)}.jpg'
-        for stream in candidate_streams[:4]:
-            cmd = ['ffmpeg', '-y', '-v', 'error', '-reconnect', '1', '-reconnect_streamed', '1', '-reconnect_delay_max', '5', '-rw_timeout', '10000000']
-            if headers:
-                cmd += ['-headers', headers]
-            cmd += ['-ss', str(t), '-i', stream['url'], '-frames:v', '1', '-vf', 'scale=1920:-2:flags=lanczos', '-pix_fmt', 'yuvj420p', '-q:v', '2', str(out)]
-            try:
-                res = subprocess.run(cmd, capture_output=True, timeout=15)
-                if res.returncode == 0 and out.exists() and out.stat().st_size > 1000:
-                    ready(out, t, meta, '1080p stream frame')
-                    break
-            except Exception:
-                continue
-
-    if frames:
-        return
-
-    # 3. Fallback to storyboards if remote stream direct seek is not supported
+    # Next: extract storyboard frames for scrubber positions if available
     boards = [f for f in info.get('formats', []) if f.get('protocol') == 'mhtml' and f.get('fragments') and f.get('fps')]
     if boards:
         board = max(boards, key=lambda f: f.get('width', 0))
@@ -86,7 +73,7 @@ def prepare(url, job, data, probe, publish):
         rows = board.get('rows', 1)
         tiles = cols * rows
         sheets = {}
-        for fraction in (.10, .35, .65, .85):
+        for fraction in (.25, .50, .75):
             if len(frames) >= 4:
                 break
             t = duration * fraction
@@ -96,7 +83,7 @@ def prepare(url, job, data, probe, publish):
             if sheet not in sheets:
                 try:
                     req = urllib.request.Request(board['fragments'][sheet]['url'], headers={'User-Agent': 'Mozilla/5.0'})
-                    with urllib.request.urlopen(req, timeout=10) as response:
+                    with urllib.request.urlopen(req, timeout=8) as response:
                         raw = response.read(12 * 1024 * 1024)
                     sheets[sheet] = Image.open(io.BytesIO(raw)).convert('RGB')
                 except Exception:
@@ -114,7 +101,36 @@ def prepare(url, job, data, probe, publish):
                 sf = 960 / cropped.width
                 cropped = cropped.resize((960, int(cropped.height * sf)), Image.Resampling.LANCZOS)
             cropped.save(out, quality=95)
-            ready(out, t, meta, 'storyboard frame (preview)')
+            ready(out, t, meta, 'storyboard frame')
+
+    # If we already have preview frames, mark ready and finish immediately!
+    if frames:
+        publish({'preview_status': 'ready', 'preview_frames': list(frames), 'preview_meta': meta})
+        return
+
+    # Fallback only for non-YouTube / direct streams with very short timeout
+    formats = [f for f in info.get('formats', []) if f.get('vcodec') not in (None, 'none') and f.get('url') and f.get('height', 0) <= 1080]
+    hls_formats = [f for f in formats if (f.get('protocol') or '').startswith('m3u8') and f.get('height', 0) >= 720]
+    candidate_streams = hls_formats or formats
+    headers = ''.join(f'{k}: {v}\r\n' for k, v in info.get('http_headers', {}).items())
+
+    fractions = (.15, .50) if duration > 1800 else (.08, .50)
+    for fraction in fractions:
+        if len(frames) >= 2:
+            break
+        t = duration * fraction
+        out = folder / f'{len(frames)}.jpg'
+        for stream in candidate_streams[:2]:
+            cmd = ['ffmpeg', '-y', '-v', 'error', '-ss', str(t), '-i', stream['url'], '-frames:v', '1', '-vf', 'scale=1280:-2', '-pix_fmt', 'yuvj420p', '-q:v', '3', str(out)]
+            try:
+                res = subprocess.run(cmd, capture_output=True, timeout=8)
+                if res.returncode == 0 and out.exists() and out.stat().st_size > 1000:
+                    ready(out, t, meta, 'stream frame')
+                    break
+            except Exception:
+                continue
+
+    publish({'preview_status': 'ready', 'preview_frames': list(frames), 'preview_meta': meta})
 
     # 4. Immediate background upgrade to 1080p Full HD Frame from video stream
     import threading

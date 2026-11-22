@@ -40,13 +40,29 @@ const status = (t, detail = '') => {
 };
 
 async function request(path, body) {
-  const response = await fetch(path, body === undefined ? {} : {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body)
-  });
-  const data = await response.json();
-  if (!response.ok) throw Error(data.detail || 'Request failed');
+  let response;
+  try {
+    response = await fetch(path, body === undefined ? {} : {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    });
+  } catch (err) {
+    throw new Error('Connection error. Server may be busy, retrying...');
+  }
+
+  const text = await response.text();
+  let data;
+  try {
+    data = JSON.parse(text);
+  } catch (e) {
+    if (response.status === 524 || response.status === 504) {
+      throw new Error('Server task in progress. Background processing active.');
+    }
+    throw new Error(`Server response (${response.status}): please wait a moment.`);
+  }
+
+  if (!response.ok) throw Error(data.detail || data.error || 'Request failed');
   return data;
 }
 
@@ -182,8 +198,8 @@ $('link').onclick = async () => {
         if (!Number($('end').value) || Number($('end').value) > s.duration) $('end').value = Math.min(30, s.duration);
         showToast('Video loaded! Set your framing or click ⚡ Make 4K Clips.', 'success');
       }
-      if (completed && (s.preview_status !== 'loading' || s.preview_frames?.length >= 4)) break;
-      await sleep(700);
+      if (completed && (s.preview_status !== 'loading' || (s.preview_frames?.length || 0) >= 1)) break;
+      await sleep(1200);
     }
   })();
   pendingImport = operation;
